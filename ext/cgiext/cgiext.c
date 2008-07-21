@@ -19,7 +19,7 @@ static ID _id_to_s;
 #define LEN(start, end)  ((size_t)(end-start))/sizeof(char)
 
 VALUE cgiext_parse_query_string(VALUE self, VALUE string);
-
+static VALUE next_token(char *s, char *p);
 
 
 /**
@@ -44,7 +44,7 @@ VALUE cgiext_escape_html(VALUE self, VALUE value) {
     }
     if (ch == '\0')
         return value;
-    VALUE str = rb_str_new(s, LEN(s, p));
+    VALUE str = next_token(s, p);
     s = p;
     while ((ch = *p) != '\0') {
         switch (ch) {
@@ -158,7 +158,7 @@ VALUE cgiext_unescape_html(VALUE self, VALUE string) {
     }
     if (ch == '\0')
         return string;
-    VALUE str = rb_str_new(s, LEN(s, p));
+    VALUE str = next_token(s, p);
     s = p;
     const int size = 8;
     char buf[size];
@@ -256,7 +256,7 @@ VALUE cgiext_escape_url(VALUE self, VALUE string)
     }
     if (ch == '\0')
         return string;
-    VALUE str = rb_str_new(s, LEN(s, p));
+    VALUE str = next_token(s, p);
     s = p;
     char buf[4];
     buf[0] = '%';
@@ -324,7 +324,7 @@ VALUE cgiext_unescape_url(VALUE self, VALUE string)
     }
     if (ch == '\0')
         return string;
-    VALUE str = rb_str_new(s, LEN(s, p));
+    VALUE str = next_token(s, p);
     s = p;
     while ((ch = *p) != '\0') {
         if (ch == '%') {
@@ -411,22 +411,26 @@ VALUE cgiext_parse_query_string(VALUE self, VALUE string) {
     while (1) {
         
         //reached an equal sign, store the value between s and p as key
-        if (ch == '=' && key == Qnil) {
-            key = rb_str_new(s, LEN(s, p));
+        if (ch == '=' && key == Qnil) 
+        {
+            key = next_token(s, p);
             s = p + 1;
         }
         
         //reached the end of a key:value pair, or the end of the query string
-        else if (ch == '&' || ch == ';' || ch == '\0') {
+        else if (ch == '&' || ch == ';' || ch == '\0') 
+        {
             
             //if key has been stored already, store the string between s and p as its val
-            if (key != Qnil) {
-                val = rb_str_new(s, LEN(s, p));
+            if (key != Qnil) 
+            {
+                val = next_token(s, p);
             }
             
             //else store the string between s and p as the key, with an empty val
-            else {
-                key = rb_str_new(s, LEN(s, p));
+            else 
+            {
+                key = next_token(s, p);
                 val = rb_str_new("", 0);
             }
             
@@ -459,8 +463,13 @@ VALUE cgiext_parse_query_string(VALUE self, VALUE string) {
 }
 
 
+//private function used in several functions
+//returns the current token between s and p
 
-
+static VALUE next_token(char *s, char *p)
+{
+  return rb_str_new(s, LEN(s, p));
+} 
 
 static VALUE _get_module(char *modname, char *submodname) {
     VALUE module;
