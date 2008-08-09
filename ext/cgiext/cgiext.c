@@ -19,6 +19,7 @@ static ID _id_to_s;
 #define LEN(start, end)  ((size_t)(end-start))/sizeof(char)
 
 VALUE cgiext_parse_query_string(VALUE self, VALUE string);
+VALUE cgiext_rails_parse_query_string(VALUE self, VALUE string);
 static VALUE next_token(char *s, char *p);
 
 
@@ -462,7 +463,11 @@ VALUE cgiext_parse_query_string(VALUE self, VALUE string) {
     return params;
 }
 
-VALUE cgiext_rails_parse_query_string(VALUE self, VALUE string) {
+
+//since rails uses its own query string parser, which works slightly differently than ruby's, I adapted the function so that we can also override rails' cgi parser
+//if there are more than one keys with the same name, only the first one is used - in ruby's cgi, the key would point to an array of the multiple values assigned
+VALUE cgiext_rails_parse_query_string(VALUE self, VALUE string) 
+{
     //make sure we are dealing with a string
     Check_Type(string, T_STRING);
     
@@ -511,6 +516,8 @@ VALUE cgiext_rails_parse_query_string(VALUE self, VALUE string) {
             // set parameter
             VALUE list = rb_hash_aref(params, key);              // list = params[key]
 
+
+            //this is the main difference with Ruby's CGI, instead of putting the value into an array, just put the value directly in
             if (list == Qnil)
                 rb_hash_aset(params, key, val);  // params[key] = [val]
 
@@ -528,8 +535,8 @@ VALUE cgiext_rails_parse_query_string(VALUE self, VALUE string) {
     
     VALUE empty_arr = rb_funcall(rb_ary_new(), _id_freeze, 0);
     rb_funcall(params, _id_setdefault, 1, empty_arr);    // params.default = [].freeze
-    printf ("\n******************\n%s\n", string);
-    printf ("\n******************\nHello World!\n");
+//    printf ("\n******************\n%s\n", string);
+//    printf ("\n******************\nHello World!\n");
     return params;
 }
 
@@ -556,6 +563,8 @@ static VALUE _get_module(char *modname, char *submodname) {
 
 static VALUE cgiext_replace_functions(VALUE self) {
     VALUE module;
+    
+    //replace the Ruby CGI functions
     if ((module = _get_module("CGI", NULL)) != Qnil) 
     {
         rb_define_module_function(module, "parse",        cgiext_parse_query_string, 1);
@@ -565,7 +574,7 @@ static VALUE cgiext_replace_functions(VALUE self) {
         rb_define_module_function(module, "unescape",     cgiext_unescape_url, 1);
     }
     
-    //for rails
+    //for rails, override the parse_query_parameters function in request.rb (ActionController)
     if ((module = _get_module("ActionController", "AbstractRequest")) != Qnil)
     {
       rb_define_module_function(module, "parse_query_parameters", cgiext_rails_parse_query_string, 1);      
@@ -588,5 +597,8 @@ void Init_cgiext(void) {
     rb_define_module_function(cCGIExt, "escape_url", cgiext_escape_url, 1);
     rb_define_module_function(cCGIExt, "unescape_url", cgiext_unescape_url, 1);
     rb_define_singleton_method(cCGIExt, "replace_functions", cgiext_replace_functions, 0);
+    
+    rb_define_module_function(cCGIExt, "rparse_query_string", cgiext_rails_parse_query_string, 1);    
+
     cgiext_replace_functions(cCGIExt);
 }

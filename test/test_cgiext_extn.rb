@@ -203,4 +203,48 @@ class CGIExtTest < Test::Unit::TestCase
   end
 
 
+  def test_rparse_query_string
+    actual = nil
+    ## equal with CGI.parse()
+    [
+      ## '&' separator
+      ['a=10&b=20&key1=val1',  {'a'=>'10', 'b'=>'20', 'key1'=>'val1'} ],
+      ## ';' separator
+      ['a=10;b=20;key1=val1',  {'a'=>'10', 'b'=>'20', 'key1'=>'val1'} ],
+      ## same keys
+      ['a=1&a=2&a=3',          {'a'=>'1'} ],
+      ## no value
+      ['key=&key=', {'key'=>''} ],
+      ## unescape ascii string
+      ['k%5B%5D=%5B%5D%26%3B', {'k[]'=>'[]&;'} ],
+      ## unescape unicode string
+      ["%A4%A2%a4%a4=%A4%a6%A4%A8%A4%Aa", {"\244\242\244\244"=>"\244\246\244\250\244\252"} ],
+      ## invalid '%' format
+      ['k%XX%5=%%%', {'k%XX%5'=>'%%%'} ],
+    ].each do |input, expected|
+      actual = CGIExt.rparse_query_string(input)
+      assert_equal(expected, actual)
+      #assert_equal(CGI.parse(input), actual)
+    end
+    ## different with CGI.parse()
+    [
+      ## without '=' (CGI: {"a"=>nil, "b"=>nil})
+      ['a&b',     {'a'=>'', 'b'=>''}     ],
+      ## invalid format  (CGI: {"a"=>[""], "b"=>[nil]})
+      ['a=&b&&',  {'a'=>'', 'b'=>'', ''=>''}  ],
+    ].each do |input, expected|
+      actual = CGIExt.rparse_query_string(input)
+      assert_equal(expected, actual)
+      #assert_equal(CGI.parse(input), actual)
+    end
+    ## default value is frozen empty array
+    assert_equal(actual['unknownkey'], [])
+    assert_raise(TypeError) do
+      actual['unknownkey'] << 'foo'
+    end
+  end
+  
+  
+
+  
 end
