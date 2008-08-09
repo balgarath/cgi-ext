@@ -462,6 +462,78 @@ VALUE cgiext_parse_query_string(VALUE self, VALUE string) {
     return params;
 }
 
+VALUE cgiext_rails_parse_query_string(VALUE self, VALUE string) {
+    //make sure we are dealing with a string
+    Check_Type(string, T_STRING);
+    
+    //params is a hash of arrays that will be returned
+    VALUE params = rb_hash_new();
+    
+    VALUE key = Qnil, val = Qnil;
+    
+    //using 2 pointers, s and p, to keep track of current string    
+    char *s, *p;
+    s = p = RSTRING(string)->ptr;
+
+    //ch will be the current character we are checking
+    int ch = *p;
+    
+    //infinite loop, will only break when end of query string is reached
+    while (1) {
+        
+        //reached an equal sign, store the value between s and p as key
+        if (ch == '=' && key == Qnil) 
+        {
+            key = next_token(s, p);
+            s = p + 1;
+        }
+        
+        //reached the end of a key:value pair, or the end of the query string
+        else if (ch == '&' || ch == ';' || ch == '\0') 
+        {
+            
+            //if key has been stored already, store the string between s and p as its val
+            if (key != Qnil) 
+            {
+                val = next_token(s, p);
+            }
+            
+            //else store the string between s and p as the key, with an empty val
+            else 
+            {
+                key = next_token(s, p);
+                val = rb_str_new("", 0);
+            }
+            
+            key = cgiext_unescape_url(self, key);
+            val = cgiext_unescape_url(self, val);
+
+            // set parameter
+            VALUE list = rb_hash_aref(params, key);              // list = params[key]
+
+            if (list == Qnil)
+                rb_hash_aset(params, key, val);  // params[key] = [val]
+
+            
+            // break if end of query string
+            if (ch == '\0')
+                break;
+
+        //set everything for next iteration
+            key = val = Qnil;
+            s = p + 1;
+        }
+        ch = *++p;
+    }
+    
+    VALUE empty_arr = rb_funcall(rb_ary_new(), _id_freeze, 0);
+    rb_funcall(params, _id_setdefault, 1, empty_arr);    // params.default = [].freeze
+    printf ("\n******************\n%s\n", string);
+    printf ("\n******************\nHello World!\n");
+    return params;
+}
+
+
 
 //private function used in several functions
 //returns the current token between s and p
@@ -484,12 +556,19 @@ static VALUE _get_module(char *modname, char *submodname) {
 
 static VALUE cgiext_replace_functions(VALUE self) {
     VALUE module;
-    if ((module = _get_module("CGI", NULL)) != Qnil) {
+    if ((module = _get_module("CGI", NULL)) != Qnil) 
+    {
         rb_define_module_function(module, "parse",        cgiext_parse_query_string, 1);
         rb_define_module_function(module, "escapeHTML",   cgiext_escape_html, 1);
         rb_define_module_function(module, "unescapeHTML", cgiext_unescape_html, 1);
         rb_define_module_function(module, "escape",       cgiext_escape_url, 1);
         rb_define_module_function(module, "unescape",     cgiext_unescape_url, 1);
+    }
+    
+    //for rails
+    if ((module = _get_module("ActionController", "AbstractRequest")) != Qnil)
+    {
+      rb_define_module_function(module, "parse_query_parameters", cgiext_rails_parse_query_string, 1);      
     }
 
     return Qnil;
