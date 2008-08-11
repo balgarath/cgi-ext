@@ -1,6 +1,6 @@
 = cgiext
 
-* FIX (url)
+* http://github.com/balgarath/cgi-ext/tree/master
 
 == DESCRIPTION:
 
@@ -8,7 +8,13 @@
 
 == FEATURES/PROBLEMS:
 
-* FIX (list of features or problems)
+* Haven't figured out how to get around this yet, but to get cgiext 
+working in rails, you need to add the following to 
+ApplicationController:
+session :cookie_only => false
+
+otherwise rails will throw a sessionfixationattempt error
+
 
 == SYNOPSIS:
 
@@ -17,7 +23,9 @@
 == INSTALL:
 
 * sudo gem install cgiext
-* require 'cgiext'
+* require 'cgiext' (if a rails project, add this to 
+production/development.rb, whichever)
+
 
 == LICENSE:
 
